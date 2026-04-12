@@ -6,10 +6,17 @@ import (
 	"os/exec"
 )
 
+const (
+	StatusWrongNumberOfArguments = 1
+	StatusKnavCommandNoFound     = 2
+	StatusAbortedOperation       = 3
+	StatusKubectlCommandFailed   = 4
+)
+
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: knav <kubectl args>")
-		os.Exit(1)
+		os.Exit(StatusWrongNumberOfArguments)
 	}
 
 	args := os.Args[0:]
@@ -24,7 +31,13 @@ func main() {
 
 	if knavIndex == -1 {
 		fmt.Println("Error: 'knav' not found in arguments")
-		os.Exit(1)
+		os.Exit(StatusKnavCommandNoFound)
+	}
+
+	err := confirm("local")
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(StatusAbortedOperation)
 	}
 
 	kubectlArgs := args[knavIndex+1:]
@@ -34,9 +47,9 @@ func main() {
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 
-	err := cmd.Run()
+	err = cmd.Run()
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(1)
+		os.Exit(StatusKubectlCommandFailed)
 	}
 }
