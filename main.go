@@ -14,9 +14,28 @@ const (
 )
 
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Println("Usage: knav <kubectl args>")
-		os.Exit(StatusWrongNumberOfArguments)
+	var trg Target
+
+	err := CreateDefaultConfigIfEmpty()
+	if err != nil {
+		panic(err)
+	}
+
+	cfg, err := LoadConfig()
+	if err != nil {
+		cfg = DefaultConfig()
+	}
+
+	if len(os.Args) == 1 {
+		trg, err = cfg.PickTarget()
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		trg, err = cfg.CurrentTarget()
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	args := os.Args[0:]
@@ -34,7 +53,7 @@ func main() {
 		os.Exit(StatusKnavCommandNoFound)
 	}
 
-	err := confirm("local")
+	err = confirm(trg.Name)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(StatusAbortedOperation)
