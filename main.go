@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 )
 
 const (
@@ -31,6 +33,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
+		return
 	} else {
 		trg, err = cfg.CurrentTarget()
 		if err != nil {
@@ -53,22 +56,46 @@ func main() {
 		os.Exit(StatusKnavCommandNoFound)
 	}
 
-	err = confirm(trg.Name)
+	actionIndex := knavIndex + 1
+	action := args[actionIndex]
+	err = IsPermitted(trg, action)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(StatusAbortedOperation)
 	}
 
 	kubectlArgs := args[knavIndex+1:]
-
 	cmd := exec.Command("kubectl", kubectlArgs...)
+	env := os.Environ()
+	kPath, err := expandPath(trg.KubeconfigPath)
+	if err != nil {
+		panic(err)
+	}
+	env = append(env, "KUBECONFIG="+kPath)
+	for _, e := range trg.Envs {
+		if e.Name == "" {
+			continue
+		}
+		env = append(env, e.Name+"="+e.Value)
+	}
+	cmd.Env = env
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
-
 	err = cmd.Run()
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(StatusKubectlCommandFailed)
 	}
+}
+
+func expandPath(p string) (string, error) {
+	if strings.HasPrefix(p, "~") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		p = filepath.Join(home, p[1:])
+	}
+	return filepath.Abs(p)
 }

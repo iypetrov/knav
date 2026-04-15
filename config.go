@@ -12,58 +12,6 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-type AllowedAction int
-
-const (
-	ActionGet AllowedAction = iota
-	ActionTop
-	ActionDescribe
-	ActionLogs
-	ActionAttach
-	ActionExec
-	ActionPortForward
-	ActionCp
-	ActionAuth
-	ActionDebug
-	ActionEvents
-	ActionDiff
-	ActionWait
-)
-
-var actionValues = map[string]AllowedAction{
-	"get":          ActionGet,
-	"top":          ActionTop,
-	"describe":     ActionDescribe,
-	"logs":         ActionLogs,
-	"attach":       ActionAttach,
-	"exec":         ActionExec,
-	"port-forward": ActionPortForward,
-	"cp":           ActionCp,
-	"auth":         ActionAuth,
-	"debug":        ActionDebug,
-	"events":       ActionEvents,
-	"diff":         ActionDiff,
-	"wait":         ActionWait,
-}
-
-func (a AllowedAction) String() string {
-	var action string
-	for key, value := range actionValues {
-		if value == a {
-			action = key
-			break
-		}
-	}
-	return action
-}
-
-func ParseAction(s string) (AllowedAction, error) {
-	if val, ok := actionValues[s]; ok {
-		return val, nil
-	}
-	return 0, errors.New("invalid action: " + s)
-}
-
 type Config struct {
 	Current string   `yaml:"current"`
 	Targets []Target `yaml:"targets"`
@@ -133,10 +81,16 @@ func (cfg Config) CurrentTarget() (Target, error) {
 }
 
 type Target struct {
-	Name           string          `yaml:"name"`
-	KubeconfigPath string          `yaml:"kubeconfigPath"`
-	Restricted     bool            `yaml:"restricted"`
-	AllowedActions []AllowedAction `yaml:"allowedActions,omitempty"`
+	Name           string   `yaml:"name"`
+	KubeconfigPath string   `yaml:"kubeconfigPath"`
+	Envs           []Env    `yaml:"envs,omitempty"`
+	Restricted     bool     `yaml:"restricted"`
+	AllowedActions []string `yaml:"allowedActions,omitempty"`
+}
+
+type Env struct {
+	Name  string `yaml:"name"`
+	Value string `yaml:"value"`
 }
 
 func LoadConfig() (Config, error) {
