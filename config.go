@@ -86,6 +86,7 @@ type Target struct {
 	Envs           []Env    `yaml:"envs,omitempty"`
 	Restricted     bool     `yaml:"restricted"`
 	AllowedActions []string `yaml:"allowedActions,omitempty"`
+	InitScript     []string `yaml:"initScript,omitempty"`
 }
 
 type Env struct {

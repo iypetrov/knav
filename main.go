@@ -29,9 +29,16 @@ func main() {
 	}
 
 	if len(os.Args) == 1 {
+		prev := cfg.Current
 		trg, err = cfg.PickTarget()
 		if err != nil {
 			panic(err)
+		}
+		if trg.Name != prev {
+			if err := runInitScript(trg); err != nil {
+				fmt.Fprintf(os.Stderr, "init script failed: %v\n", err)
+				os.Exit(1)
+			}
 		}
 		return
 	} else {
@@ -98,4 +105,17 @@ func expandPath(p string) (string, error) {
 		p = filepath.Join(home, p[1:])
 	}
 	return filepath.Abs(p)
+}
+
+func runInitScript(trg Target) error {
+	for _, command := range trg.InitScript {
+		cmd := exec.Command("sh", "-c", command)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Stdin = os.Stdin
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("command %q failed: %w", command, err)
+		}
+	}
+	return nil
 }
