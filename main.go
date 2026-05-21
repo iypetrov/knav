@@ -114,8 +114,33 @@ func runInitScript(trg Target) error {
 		cmd.Stderr = os.Stderr
 		cmd.Stdin = os.Stdin
 		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("command %q failed: %w", command, err)
+			fmt.Printf("\nInit script failed:\n%s\n\n", command)
+
+			fmt.Print("Close window? [y/N]: ")
+
+			var answer string
+			fmt.Scanln(&answer)
+
+			if strings.EqualFold(answer, "y") {
+				return fmt.Errorf("command %q failed: %w", command, err)
+			}
+
+			// keep shell open
+			shell := os.Getenv("SHELL")
+			if shell == "" {
+				shell = "/bin/sh"
+			}
+
+			shellCmd := exec.Command(shell)
+			shellCmd.Stdin = os.Stdin
+			shellCmd.Stdout = os.Stdout
+			shellCmd.Stderr = os.Stderr
+
+			_ = shellCmd.Run()
+
+			return nil
 		}
 	}
+
 	return nil
 }
