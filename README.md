@@ -35,11 +35,37 @@ targets:
     restricted: false
 ```
 
-You can define multiple kubeconfig targets like this:
+You can override the config location by setting `KNAVCONFIG` to a directory that contains a `config.yaml` file.
+
+### All available options
+
+Top-level keys:
+
+| Key       | Description                                                       |
+| --------- | ----------------------------------------------------------------- |
+| `current` | Name of the target that is currently active.                      |
+| `targets` | List of target definitions (see below).                           |
+
+Per-target keys:
+
+| Key              | Required | Description                                                                                             |
+| ---------------- | :------: | ------------------------------------------------------------------------------------------------------- |
+| `name`           |    ✓     | Display name shown in the fuzzy picker and used as the value of `current`.                              |
+| `kubeconfigPath` |    ✓     | Path to the kubeconfig file. `~` is expanded to `$HOME`.                                                |
+| `envs`           |          | List of `{name, value}` pairs exported into the environment of the forwarded `kubectl` invocation.      |
+| `restricted`     |          | If `true`, only verbs listed in `allowedActions` run without confirmation; everything else prompts.     |
+| `allowedActions` |          | Whitelist of `kubectl` verbs allowed to run directly when the target is `restricted`.                   |
+| `initScript`     |          | Shell commands executed **once** when you switch *to* this target via the picker. See below for usage.  |
+
+### Full example
+
+The example below demonstrates every option, with realistic patterns drawn from a daily workflow:
 
 ```yaml
 current: local
 targets:
+  # A dev cluster, treated as read-only by default. All traffic goes
+  # through a SOCKS proxy (e.g. opened by `cloudflared access tcp`).
   - name: local
     kubeconfigPath: ~/.kube/config
     envs:
@@ -48,14 +74,42 @@ targets:
     restricted: true
     allowedActions:
       - get
+      - top
+      - describe
       - logs
+      - api-resources
+      - attach
+      - exec
+      - port-forward
+      - cp
+      - auth
+      - debug
+      - events
+      - diff
+      - wait
+      - explain
 
-  - name: gardener-local
-    kubeconfigPath: ~/Projects/oss/gardener/example/gardener-local/kind/local/kubeconfig
+  # A local cluster — no restrictions, no init.
+  - name: dev-local 
+    kubeconfigPath: ~/projects/dev/kubeconfigs/runtime/kubeconfig
     restricted: false
-```
 
-If you are using zsh, you can add this to your `~/.zshrc` file, so the right kubeconfig to be propagated automatically.
+  # The init script makes sure you're logged in to you staging GCP account.
+  - name: staging
+    kubeconfigPath: ~/projects/remote/kubeconfig
+    restricted: true
+    allowedActions:
+      - get
+      - logs
+      - describe
+      - exec
+      - port-forward
+    initScript:
+      - gcloud auth print-access-token > /dev/null || gcloud auth login
+```
+### Auto-export `KUBECONFIG` to match the active target
+
+So that other tools (`flux`, `helm`, `k9s`, prompt themes like Powerlevel10k, ...) automatically point at the same cluster as `knav`:
 
 ```bash
 autoload -Uz add-zsh-hook
@@ -66,28 +120,14 @@ function _auto_kubeconfig() {
 
   if [[ "$KUBECONFIG" != "$new_config" ]]; then
     export KUBECONFIG="$new_config"
-    p10k reload
+    p10k reload   # remove if you don't use Powerlevel10k
   fi
 }
 
 add-zsh-hook precmd _auto_kubeconfig
+
+source <(knav completion zsh)
 ```
-
-## Key Features
-
-### 🔄 Easy Context Switching
-
-Quickly switch between different Kubernetes environments without manually exporting or modifying kubeconfig files by just running `knav` - it will give you the option to fuzzy search you target config file. It works very similarly as `kubectx`.
-
-### 🔒 Safe Mode (Restricted Targets)
-
-Prevent accidental destructive actions in critical environments.
-
-When `restricted: true` is enabled:
-- Only commands listed in `allowedActions` (e.g. `get`, `logs`, `describe`) run without interruption.
-- Any other command requires explicit confirmation before execution.
-
-This is especially useful when you have admin access to production clusters but want an extra safety layer.
 
 ## Contributing
 
