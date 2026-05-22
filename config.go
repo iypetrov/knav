@@ -41,9 +41,18 @@ func (cfg *Config) Save() error {
 func (cfg *Config) PickTarget() (Target, error) {
 	cmd := exec.Command("fzf", "--ansi", "--no-preview")
 
+	const (
+		colorBoldGreen = "\033[1;32m"
+		colorReset     = "\033[0m"
+	)
+
 	var stdin bytes.Buffer
 	for _, t := range cfg.Targets {
-		stdin.WriteString(t.Name + "\n")
+		if t.Name == cfg.Current {
+			stdin.WriteString(colorBoldGreen + t.Name + colorReset + "\n")
+		} else {
+			stdin.WriteString(t.Name + "\n")
+		}
 	}
 	cmd.Stdin = &stdin
 
@@ -56,6 +65,7 @@ func (cfg *Config) PickTarget() (Target, error) {
 	}
 
 	selected := strings.TrimSpace(stdout.String())
+	selected = stripANSI(selected)
 
 	for _, t := range cfg.Targets {
 		if t.Name == selected {
@@ -69,6 +79,20 @@ func (cfg *Config) PickTarget() (Target, error) {
 	}
 
 	return Target{}, errors.New("no target selected")
+}
+
+func stripANSI(s string) string {
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\033' {
+			for i < len(s) && s[i] != 'm' {
+				i++
+			}
+			continue
+		}
+		b.WriteByte(s[i])
+	}
+	return b.String()
 }
 
 func (cfg Config) CurrentTarget() (Target, error) {
