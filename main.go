@@ -109,36 +109,28 @@ func expandPath(p string) (string, error) {
 
 func runInitScript(trg Target) error {
 	for _, command := range trg.InitScript {
-		cmd := exec.Command("sh", "-c", command)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Stdin = os.Stdin
-		if err := cmd.Run(); err != nil {
+		for {
+			cmd := exec.Command("sh", "-c", command)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			cmd.Stdin = os.Stdin
+			err := cmd.Run()
+			if err == nil {
+				break
+			}
+
 			fmt.Printf("\nInit script failed:\n%s\n\n", command)
 
-			fmt.Print("Close window? [y/N]: ")
+			fmt.Print("Retry or close window? [r/C]: ")
 
 			var answer string
 			fmt.Scanln(&answer)
 
-			if strings.EqualFold(answer, "y") {
-				return fmt.Errorf("command %q failed: %w", command, err)
+			if strings.EqualFold(answer, "r") {
+				continue
 			}
 
-			// keep shell open
-			shell := os.Getenv("SHELL")
-			if shell == "" {
-				shell = "/bin/sh"
-			}
-
-			shellCmd := exec.Command(shell)
-			shellCmd.Stdin = os.Stdin
-			shellCmd.Stdout = os.Stdout
-			shellCmd.Stderr = os.Stderr
-
-			_ = shellCmd.Run()
-
-			return nil
+			return fmt.Errorf("command %q failed: %w", command, err)
 		}
 	}
 
