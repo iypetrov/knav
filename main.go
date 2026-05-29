@@ -124,6 +124,14 @@ func runInitScript(trg Target) error {
 	for _, command := range trg.InitScript {
 		for {
 			cmd := exec.Command("sh", "-c", command)
+			env := os.Environ()
+			for _, e := range trg.Envs {
+				if e.Name == "" {
+					continue
+				}
+				env = append(env, e.Name+"="+e.Value)
+			}
+			cmd.Env = env
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			cmd.Stdin = os.Stdin
